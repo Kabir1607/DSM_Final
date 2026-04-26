@@ -37,18 +37,23 @@ def init_connection():
 
 engine = init_connection()
 
-# Custom CSS for Premium Design
+# Custom CSS for Premium Design & Increased Font Size
 st.markdown("""
 <style>
+    /* INCREASE GLOBAL FONT SIZE */
+    html, body, [class*="css"] {
+        font-size: 20px !important; 
+    }
+    
     .stApp { background-color: #0B1121; color: #F8FAFC; }
     .main-title {
-        font-size: 3rem; font-weight: 800;
+        font-size: 3.5rem !important; font-weight: 800;
         background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.5rem; line-height: 1.2;
     }
     .sub-title {
-        font-size: 1.2rem; color: #94A3B8; border-left: 4px solid #8B5CF6;
+        font-size: 1.4rem !important; color: #94A3B8; border-left: 4px solid #8B5CF6;
         padding-left: 1rem; margin-bottom: 2rem;
     }
     .glass-card {
@@ -56,6 +61,13 @@ st.markdown("""
         border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
+    .big-metric {
+        font-size: 3rem; font-weight: 900;
+        margin: 0; padding: 0; line-height: 1;
+    }
+    .weak-corr { color: #FBBF24; }
+    .strong-corr { color: #34D399; }
+    
     /* Hide Streamlit Branding */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
 </style>
@@ -110,19 +122,19 @@ page = st.sidebar.radio("Go to", ["Research Blog", "Agentic RAG Router"])
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Database Status:** ✅ Connected")
 
-# 4. Page 1: Research Blog (Redesigned with Tabs & Interactives)
+# 4. Page 1: Research Blog
 if page == "Research Blog":
     st.markdown('<div class="main-title">Analyzing the Effects of NEP 2020 in Karnataka</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">To what extent have the goals the National Education Policy (NEP) set out for itself in Karnataka been realized compared to the counterfactual (Tamil Nadu)?</div>', unsafe_allow_html=True)
     
     # Interactive Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Methodology & Variable Justification", "EDA & Data Triangulation", "The 5 DiD Findings", "Conclusions"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Methodology", "Data Triangulation", "The DiD Findings", "Conclusions"])
     
     with tab1:
         st.markdown("### Context & Motivation")
         st.write("Karnataka was an early adopter of the NEP, while states like Tamil Nadu actively resisted it. Given the widespread political dissatisfaction leading to the proposed State Education Policy (SEP 2025), this project empirically measures transition friction.")
         
-        st.markdown("### The 5 Policy Metrics: Mapping & Justification")
+        st.markdown("### The Policy Metrics: Mapping & Justification")
         st.write("Abstract policy goals cannot be measured directly. I mapped specific NEP directives to quantitative NIRF and Sentiment variables:")
         
         with st.expander("1. Vocational Skill Integration ➔ mapped to **Graduation Outcomes (GO)**", expanded=True):
@@ -138,13 +150,17 @@ if page == "Research Blog":
 
     with tab2:
         st.markdown("### Exploratory Data Analysis & Triangulation")
+        st.write("Before running the causal models, the government index scores were cross-validated against raw, ground-truth variables.")
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("""
             <div class="glass-card">
-                <h4>Test 1: Placement Quantity vs. Quality</h4>
-                <p>Cross-validated NIRF GO scores against raw average salaries (LPA).</p>
-                <h2 style='color:#FBBF24;'>Correlation: 0.107 (Very Weak)</h2>
+                <h4>Test 1: Quantity vs. Quality</h4>
+                <p>Cross-validated NIRF Graduation Outcomes against raw average starting salaries (LPA).</p>
+                <br>
+                <p class="big-metric weak-corr">r = 0.107</p>
+                <p style="color:#FBBF24;"><strong>Very Weak Correlation</strong></p>
+                <br>
                 <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
             </div>
             """, unsafe_allow_html=True)
@@ -153,7 +169,10 @@ if page == "Research Blog":
             <div class="glass-card">
                 <h4>Test 2: Infrastructure Integrity</h4>
                 <p>Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios.</p>
-                <h2 style='color:#34D399;'>Correlation: -0.646 (Strong)</h2>
+                <br>
+                <p class="big-metric strong-corr">r = -0.646</p>
+                <p style="color:#34D399;"><strong>Strong Negative Correlation</strong></p>
+                <br>
                 <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized.</p>
             </div>
             """, unsafe_allow_html=True)
@@ -194,20 +213,9 @@ if page == "Research Blog":
             img3 = load_image("did_analysis/did_bar_rpc_score.png")
             if img3: st.image(img3, use_container_width=True)
         st.divider()
-        
-        # Metric 4
-        st.markdown("#### 4. Vocational & Technical Skill Integration (Placements)")
-        colA, colB = st.columns([1, 2])
-        with colA:
-            st.write("**The 'Quantity over Quality' Illusion**")
-            st.write("**Interpretation:** The policy currently rewards the *quantity* of low-paying jobs. The 2025 SEP must adopt stricter 'LPA thresholds' to accurately measure digital skill bridging.")
-        with colB:
-            img4 = load_image("did_analysis/did_timeseries_avg_salary_lpa.png")
-            if img4: st.image(img4, use_container_width=True)
-        st.divider()
 
-        # Metric 5
-        st.markdown("#### 5. Administrative Efficiency & Cybersecurity (Sentiment)")
+        # Metric 4 (Formerly 5)
+        st.markdown("#### 4. Administrative Efficiency & Cybersecurity (Sentiment)")
         colA, colB = st.columns([1, 2])
         with colA:
             st.metric(label="Pearson Correlation", value="-0.616", delta="Spillover Effect", delta_color="inverse")
