@@ -7,3 +7,4 @@ __pycache__/
 *.pyc
 .streamlit/
 .ipynb_checkpoints/
+.env
