@@ -1,0 +1,9 @@
+# for kaggle    
+KAGGLE_USERNAME = kdixter
+KAGGLE_API_TOKEN = KGAT_d9756939978607e0e8d15c2edaf5a009
+
+# for mediastack
+MEDIASTACK_API_KEY = 6bcb5fe28d9968b515307cf7368b7aaa
+
+# for newsapi 
+newsapi_key = 86de6baee6c94093b5a8908304622cc7

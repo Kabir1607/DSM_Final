@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEP Policy Analysis & RAG System</title>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#0B1121',
+                            card: 'rgba(30, 41, 59, 0.6)',
+                            border: 'rgba(148, 163, 184, 0.1)',
+                            accent1: '#3B82F6',
+                            accent2: '#8B5CF6',
+                            accent3: '#10B981'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background-color: #0B1121; 
+            color: #F8FAFC; 
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .glass-card:hover {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .text-gradient-success {
+            background: linear-gradient(135deg, #34D399 0%, #3B82F6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .text-gradient-warning {
+            background: linear-gradient(135deg, #F87171 0%, #FBBF24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Chat Scrollbar */
+        .chat-scroll::-webkit-scrollbar { width: 6px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .chat-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen relative">
+    <!-- Ambient Background Blobs -->
+    <div class="blob bg-blue-600 rounded-full w-96 h-96 top-0 left-[-10%]"></div>
+    <div class="blob bg-purple-600 rounded-full w-96 h-96 bottom-[20%] right-[-10%]"></div>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Navbar = ({ activePage, setActivePage }) => (
+            <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b-0 border-brand-border">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-20">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg">
+                                NEP
+                            </div>
+                            <span className="font-display font-bold text-xl tracking-wide text-white">Policy Analysis Suite</span>
+                        </div>
+                        <div className="flex space-x-6">
+                            <button 
+                                onClick={() => setActivePage('blog')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${activePage === 'blog' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            >
+                                Research Blog
+                            </button>
+                            <button 
+                                onClick={() => setActivePage('rag')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${activePage === 'rag' ? 'bg-white/10 text-white shadow-inner' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                            >
+                                Agentic Router Interface
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        );
+
+        const BlogPage = () => {
+            return (
+                <div className="pt-32 pb-24 max-w-7xl mx-auto px-6 animate-in fade-in duration-700">
+                    {/* Header Section */}
+                    <header className="mb-16 text-center space-y-6">
+                        <div className="inline-block px-4 py-1.5 rounded-full glass-card text-blue-400 text-sm font-semibold tracking-wider uppercase mb-4">
+                            Final Deliverable · Econometrics & Data Science
+                        </div>
+                        <h1 className="text-5xl md:text-6xl font-display font-bold leading-tight text-white">
+                            Analyzing the Effects of <span className="text-gradient">NEP 2020</span> in Karnataka
+                        </h1>
+                        <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed border-l-4 border-purple-500 pl-6 text-left mt-8">
+                            <strong className="text-white">Research Question:</strong> To what extent have the goals the National Education Policy (NEP) set out for itself in Karnataka been realized compared to the counterfactual?
+                        </p>
+                    </header>
+
+                    {/* Context & Motivation */}
+                    <section className="mb-20">
+                        <h2 className="text-3xl font-display font-semibold mb-8 text-white flex items-center gap-3">
+                            <i data-lucide="book-open" className="text-blue-400"></i> Context & Motivation
+                        </h2>
+                        <div className="glass-card rounded-2xl p-8 space-y-6">
+                            <p className="text-slate-300 leading-relaxed text-lg">
+                                <strong className="text-blue-400">Secondary Research:</strong> Grounded in the official NEP 2020 document, the Karnataka implementation guidelines, and the recently proposed State Education Policy (SEP 2025) which outlines intense pushback.
+                            </p>
+                            <p className="text-slate-300 leading-relaxed text-lg">
+                                <strong className="text-purple-400">Motivation:</strong> Karnataka was an early adopter of the NEP, while states like Tamil Nadu actively resisted it. Given the widespread political and institutional dissatisfaction, this project moves beyond rhetoric to empirically measure how well the policy's structural changes were actually realized.
+                            </p>
+                        </div>
+                    </section>
+
+                    {/* Data Acquisition Tech Stack Grid */}
+                    <section className="mb-20">
+                        <h2 className="text-3xl font-display font-semibold mb-8 text-white flex items-center gap-3">
+                            <i data-lucide="database" className="text-blue-400"></i> Data Acquisition
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="glass-card rounded-2xl p-6 border-t-4 border-t-blue-500">
+                                <h3 className="text-xl font-bold mb-3 text-white">Scale</h3>
+                                <p className="text-slate-400">Over <span className="text-blue-400 font-bold text-lg">3.6 GB</span> of structured and unstructured data seamlessly ingested and mapped.</p>
+                            </div>
+                            <div className="glass-card rounded-2xl p-6 border-t-4 border-t-purple-500">
+                                <h3 className="text-xl font-bold mb-3 text-white">Tabular Data</h3>
+                                <p className="text-slate-400">Kaggle APIs delivering 10 years of contiguous NIRF institutional panel data, AISHE microdata, and raw engineering placement records.</p>
+                            </div>
+                            <div className="glass-card rounded-2xl p-6 border-t-4 border-t-emerald-500">
+                                <h3 className="text-xl font-bold mb-3 text-white">Text Corpus</h3>
+                                <p className="text-slate-400">GDELT and NewsAPI combined with Kaggle historical news dumps to create a <span className="text-emerald-400 font-bold">4.2 million row</span> regional headline corpus.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Methodology */}
+                    <section className="mb-20">
+                        <h2 className="text-3xl font-display font-semibold mb-8 text-white flex items-center gap-3">
+                            <i data-lucide="git-merge" className="text-blue-400"></i> Methodology & Rationale
+                        </h2>
+                        <div className="glass-card rounded-2xl p-8">
+                            <p className="text-slate-300 mb-8 text-lg">
+                                <strong>The Database:</strong> A hybrid PostgreSQL architecture using the <code className="bg-slate-800 text-pink-400 px-2 py-1 rounded">pgvector</code> extension to handle both strict relational joins and high-dimensional semantic search.
+                            </p>
+                            <h3 className="text-2xl font-semibold mb-6 text-white">Mapping Policy to Variables</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">Vocational Skill Integration → <strong className="text-blue-400">GO (Graduation Outcomes)</strong></div>
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">Digital Divide & Infra → <strong className="text-blue-400">TLR (Teaching, Learning & Resources)</strong></div>
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">Inclusivity in STEMM → <strong className="text-blue-400">OI (Outreach & Inclusivity)</strong></div>
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">Restructuring & Autonomy → <strong className="text-blue-400">RPC (Research Output)</strong></div>
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 md:col-span-2">Administrative Efficiency → <strong className="text-blue-400">NLP Sentiment Tracking</strong> (due to lack of public KEA data)</div>
+                            </div>
+                            <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6 rounded-r-xl">
+                                <h4 className="font-bold text-blue-400 text-lg mb-2">The Econometrics</h4>
+                                <p className="text-slate-300">A Difference-in-Differences (DiD) regression using Tamil Nadu as the control state, explicitly excluding the 2020-2021 COVID shock years to preserve statistical validity.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Exploratory Data Analysis */}
+                    <section className="mb-20">
+                        <h2 className="text-3xl font-display font-semibold mb-8 text-white flex items-center gap-3">
+                            <i data-lucide="bar-chart-2" className="text-blue-400"></i> Exploratory Data Analysis
+                        </h2>
+                        <div className="grid grid-cols-1 gap-12">
+                            <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="alert-triangle" className="w-24 h-24 text-yellow-500"></i>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-4">Test 1: Placement Quantity vs. Quality</h3>
+                                <p className="text-slate-300 mb-4">Cross-validated NIRF GO scores against raw average salaries (LPA). Found a surprisingly weak correlation of <strong className="text-yellow-400">0.107</strong>.</p>
+                                <div className="bg-slate-800/80 p-4 rounded-xl border border-yellow-500/30">
+                                    <strong className="text-yellow-400">Interpretation:</strong> The government index heavily overweights the quantity of placements over the quality of starting salaries.
+                                </div>
+                                <div className="mt-6 aspect-video bg-slate-800 rounded-xl border border-slate-700 flex items-center justify-center text-slate-500 overflow-hidden">
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/final_project/data/processed/EDA_Reports/data_triangulation_results/test1_go_vs_lpa.png" alt="Test 1 Scatter Plot" className="w-full h-full object-contain bg-white" />
+                                </div>
+                            </div>
+
+                            <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <i data-lucide="check-circle" className="w-24 h-24 text-emerald-500"></i>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-4">Test 2: Infrastructure Integrity</h3>
+                                <p className="text-slate-300 mb-4">Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios (PTR). Found a strong negative correlation of <strong className="text-emerald-400">-0.646</strong>.</p>
+                                <div className="bg-slate-800/80 p-4 rounded-xl border border-emerald-500/30">
+                                    <strong className="text-emerald-400">Interpretation:</strong> The self-reported faculty counts are genuine; institutions with crowded classrooms were accurately penalized.
+                                </div>
+                                <div className="mt-6 aspect-video bg-slate-800 rounded-xl border border-slate-700 flex items-center justify-center text-slate-500 overflow-hidden">
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/final_project/data/processed/EDA_Reports/data_triangulation_results/test2_tlr_vs_ptr.png" alt="Test 2 Scatter Plot" className="w-full h-full object-contain bg-white" />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Results: DiD & Sentiment */}
+                    <section className="mb-20">
+                        <h2 className="text-3xl font-display font-semibold mb-8 text-white flex items-center gap-3">
+                            <i data-lucide="trending-up" className="text-blue-400"></i> Results: The DiD & Sentiment Findings
+                        </h2>
+                        <div className="space-y-8">
+                            {/* Finding 1 */}
+                            <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-8 w-full flex flex-col justify-center border-b border-slate-700/50">
+                                    <h3 className="text-2xl font-bold text-white mb-2">1. The Inclusivity Success</h3>
+                                    <div className="text-4xl font-bold text-gradient-success mb-4">DiD: +3.45 <span className="text-sm text-slate-400 font-normal">(OI Score)</span></div>
+                                    <p className="text-slate-300 leading-relaxed">
+                                        <strong className="text-white">Interpretation:</strong> The NEP's mandate for flexible tracks was a massive success for marginalized demographics, significantly boosting female and SC/ST/OBC enrollment in Karnataka compared to the control.
+                                    </p>
+                                </div>
+                                <div className="bg-slate-800 w-full p-8 flex items-center justify-center min-h-[500px]">
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/data/processed/EDA_Reports/did_analysis/did_bar_oi_score.png" alt="Inclusivity DiD Bar Chart" className="w-full h-full object-contain rounded-lg bg-white" />
+                                </div>
+                            </div>
+
+                            {/* Finding 2 */}
+                            <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-8 w-full flex flex-col justify-center border-b border-slate-700/50">
+                                    <h3 className="text-2xl font-bold text-white mb-2">2. The Unfunded Mandate</h3>
+                                    <div className="flex gap-6 mb-4">
+                                        <div>
+                                            <div className="text-3xl font-bold text-gradient-warning">DiD: -0.56</div>
+                                            <div className="text-sm text-slate-400">TLR Score</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl font-bold text-gradient-warning">DiD: -1.14</div>
+                                            <div className="text-sm text-slate-400">RPC Score</div>
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-300 leading-relaxed">
+                                        <strong className="text-white">Interpretation:</strong> The policy mandated massive structural scaling but provided inadequate capital. Tamil Nadu outpaced Karnataka in infrastructure and research growth without the policy.
+                                    </p>
+                                </div>
+                                <div className="bg-slate-800 w-full p-8 flex flex-col lg:flex-row gap-6 items-center justify-center min-h-[500px]">
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/data/processed/EDA_Reports/did_analysis/did_bar_tlr_score.png" alt="Infrastructure DiD Bar Chart" className="w-full lg:w-1/2 h-[450px] object-contain rounded-lg bg-white" />
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/data/processed/EDA_Reports/did_analysis/did_bar_rpc_score.png" alt="Research DiD Bar Chart" className="w-full lg:w-1/2 h-[450px] object-contain rounded-lg bg-white" />
+                                </div>
+                            </div>
+
+                            {/* Finding 3 */}
+                            <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-8 w-full flex flex-col justify-center border-b border-slate-700/50">
+                                    <h3 className="text-2xl font-bold text-white mb-2">3. The Cost of Chaos</h3>
+                                    <div className="inline-block bg-purple-900/30 border border-purple-500/30 text-purple-300 px-3 py-1 rounded-full text-sm font-medium mb-4">
+                                        NLP HuggingFace RoBERTa Tracking
+                                    </div>
+                                    <div className="text-3xl font-bold text-pink-500 mb-4">r = -0.616 <span className="text-sm text-slate-400 font-normal">(Lagged Outrage vs GO)</span></div>
+                                    <p className="text-slate-300 leading-relaxed">
+                                        <strong className="text-white">Interpretation:</strong> Administrative policy whiplash directly and negatively impacts student success. Public outrage serves as a leading indicator for institutional failure.
+                                    </p>
+                                </div>
+                                <div className="bg-slate-800 w-full p-8 flex items-center justify-center min-h-[500px]">
+                                    <img src="file:///home/Kdixter/Desktop/DSM_Final_Project/data/processed/EDA_Reports/did_analysis/did_timeseries_sentiment.png" alt="Sentiment Time-Series" className="w-full h-full object-contain rounded-lg bg-white" />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Conclusions & Betterments */}
+                    <section className="grid md:grid-cols-2 gap-8">
+                        <div className="glass-card p-8 rounded-2xl border-t-4 border-t-blue-500">
+                            <h2 className="text-2xl font-display font-bold text-white mb-6">Conclusions & Recommendations</h2>
+                            <h3 className="text-xl text-blue-400 font-semibold mb-4">The NEP succeeded in equity but failed in execution.</h3>
+                            <ul className="space-y-4 text-slate-300 list-disc pl-5">
+                                <li><strong>Address the "Unfunded Mandate":</strong> Match structural demands with actual capital expenditure in the SEP 2025.</li>
+                                <li><strong>Reform Evaluation Metrics:</strong> Prioritize high-paying job outcomes (LPA thresholds) rather than raw placement volume.</li>
+                                <li><strong>Prioritize Administrative Stability:</strong> Public outrage is statistically linked to downstream failure. Stop the whiplash.</li>
+                            </ul>
+                        </div>
+                        
+                        <div className="glass-card p-8 rounded-2xl border-t-4 border-t-purple-500">
+                            <h2 className="text-2xl font-display font-bold text-white mb-6">Future Betterments</h2>
+                            <p className="text-slate-300 mb-4">The analysis would benefit from highly domain-specific evaluations (e.g., separating Medical from Engineering).</p>
+                            <p className="text-slate-300 mb-6 bg-slate-800/80 p-4 rounded-xl border border-slate-700"><strong className="text-blue-400">Domain Expertise:</strong> I approached this project strictly from a data-science perspective without prior knowledge of the Indian Education System. Consulting a dedicated domain expert in local educational policy would have greatly enhanced the qualitative interpretation of these signals.</p>
+                            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 text-sm text-slate-400 italic">
+                                <strong>Methodological Note:</strong> I actively chose to drop the evaluation of the "Multiple Entry/Exit & Flexibility" directive. Attempting to proxy this without access to the centralized Academic Bank of Credit (ABC) database would have introduced fatal statistical noise into the regression.
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            );
+        };
+
+        const RAGInterface = () => {
+            const [messages, setMessages] = useState([
+                { role: 'assistant', content: 'Hello! I am the Agentic Database Router for the NEP Policy Analysis project. You can ask me questions about the raw data tables or semantic concepts inside the policy PDFs. How can I help you today?', type: 'system' }
+            ]);
+            const [input, setInput] = useState('');
+
+            const handleSend = async (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+                
+                const userQuery = input;
+                // Add user message
+                const newMessages = [...messages, { role: 'user', content: userQuery }];
+                setMessages(newMessages);
+                setInput('');
+                
+                try {
+                    const response = await fetch('http://localhost:8000/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: userQuery })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: data.response,
+                        type: data.type === 'sql' ? 'sql' : 'rag'
+                    }]);
+                } catch (error) {
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: "Error: Could not connect to the Agentic Router backend. Ensure the FastAPI server is running on port 8000.",
+                        type: 'system'
+                    }]);
+                }
+            };
+
+            return (
+                <div className="pt-28 pb-10 max-w-7xl mx-auto px-6 h-screen flex gap-6 animate-in fade-in duration-700">
+                    {/* Sidebar */}
+                    <div className="w-80 flex flex-col gap-6">
+                        <div className="glass-card rounded-2xl p-6">
+                            <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
+                                <i data-lucide="server" className="w-4 h-4"></i> Connected Sources
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                    <div className="flex items-center gap-3">
+                                        <i data-lucide="database" className="text-blue-400 w-5 h-5"></i>
+                                        <span className="font-medium text-slate-200">PostgreSQL</span>
+                                    </div>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                    <div className="flex items-center gap-3">
+                                        <i data-lucide="layers" className="text-purple-400 w-5 h-5"></i>
+                                        <span className="font-medium text-slate-200">pgvector Index</span>
+                                    </div>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                    <div className="flex items-center gap-3">
+                                        <i data-lucide="file-text" className="text-pink-400 w-5 h-5"></i>
+                                        <span className="font-medium text-slate-200">Policy PDFs</span>
+                                    </div>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="glass-card rounded-2xl p-6 flex-1">
+                            <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wider text-sm">Agent Diagnostics</h3>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                                The Agentic Router automatically intercepts your query and uses LLM intent classification to dynamically route your prompt to either deterministic SQL execution or dense vector retrieval.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Main Chat Interface */}
+                    <div className="flex-1 glass-card rounded-2xl flex flex-col overflow-hidden border border-slate-700/50">
+                        {/* Chat Header */}
+                        <div className="bg-slate-800/50 p-4 border-b border-slate-700/50 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-white">Agentic Workspace</h2>
+                                <p className="text-xs text-slate-400">Model: DeepSeek-R1 Router</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/30">Text-to-SQL Ready</span>
+                                <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded border border-purple-500/30">Semantic RAG Ready</span>
+                            </div>
+                        </div>
+
+                        {/* Chat Messages */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 chat-scroll">
+                            {messages.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] rounded-2xl p-4 ${
+                                        msg.role === 'user' 
+                                            ? 'bg-blue-600 text-white rounded-tr-sm' 
+                                            : 'bg-slate-800 border border-slate-700 rounded-tl-sm text-slate-200'
+                                    }`}>
+                                        {msg.type === 'sql' && (
+                                            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-blue-400 bg-blue-900/30 px-2 py-1 rounded border border-blue-800">
+                                                <i data-lucide="database" className="w-3 h-3"></i> Routed to SQL Agent
+                                            </div>
+                                        )}
+                                        {msg.type === 'rag' && (
+                                            <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 bg-purple-900/30 px-2 py-1 rounded border border-purple-800">
+                                                <i data-lucide="file-text" className="w-3 h-3"></i> Routed to Semantic Agent
+                                            </div>
+                                        )}
+                                        <p className="leading-relaxed">{msg.content}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Chat Input */}
+                        <div className="p-4 bg-slate-800/50 border-t border-slate-700/50">
+                            <form onSubmit={handleSend} className="relative flex items-center">
+                                <input 
+                                    type="text" 
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Ask a question about the data or policy (e.g. 'Show me 2024 placements' or 'What is the SEP funding rule?')..."
+                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-4 pr-12 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                />
+                                <button type="submit" className="absolute right-2 p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activePage, setActivePage] = useState('blog'); // 'blog' or 'rag'
+
+            useEffect(() => {
+                // Re-initialize icons when page changes
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [activePage]);
+
+            return (
+                <div className="min-h-screen">
+                    <Navbar activePage={activePage} setActivePage={setActivePage} />
+                    <main>
+                        {activePage === 'blog' ? <BlogPage /> : <RAGInterface />}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    <script>
+        // Initialize Lucide icons after React mounts
+        setTimeout(() => lucide.createIcons(), 1000);
+    </script>
+</body>
+</html>

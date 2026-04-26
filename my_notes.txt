@@ -1,0 +1,66 @@
+Had to remove or not evaluate "Multiple Entry/Exit & Flexibility" as they vary too much based on college to college and data inavability 
+
+Now, based on the data that is there in the database, I have to run an EDA on it. 
+Find the metadata for each file, the ranges that they are in, any NaNs I need to worry about, what kind of data is there. 
+Also find any basic correlations and visualisations in the data that is there. 
+Implement this in @contextScopeItemMention  
+
+For more EDA, look what what is in "Data Triangulation for Educational Analysis - Data Triangulation for Educational Analysis.csv". These detail the similarities or diffferences needed to be analysed. The details of what to do are in the document. Generate visualisations based on what is stated in the document that is mentioned. Visualise the differences for me
+
+For the DiD analysis, it is detailed in "Data Gaps and Variable Mapping Revision - Data Gaps and Variable Mapping Revision.csv". Look at what is in the CSV for details on the DiD analysis and implement it. 
+Also based on the metrics in "Data Gaps and Variable Mapping Revision - Data Gaps and Variable Mapping Revision.csv", run the before VS after analysis based on time series for each metric. Generate visualisations for this as well. Run for both comparing Tamil Nady VS Karnataka and Tamil Nadu and then Karnata VS Karnataka, before and after. For both these take into account excluding the yeats 2020 and 2021 (as they were affected by COVID-19)
+
+
+Sentiment Analysis: 
+I need you to write a complete, robust Python script that filters these headlines, scores their sentiment using a HuggingFace RoBERTa model, updates the database, and generates a time-series aggregation.
+
+Database Schema Reference:
+SQL
+
+CREATE TABLE news_corpus (
+    article_id SERIAL PRIMARY KEY,
+    publish_date DATE NOT NULL,
+    source_name VARCHAR(100),
+    headline TEXT NOT NULL,
+    roberta_sentiment_score NUMERIC(4, 3), -- Currently NULL, needs to be updated
+    embedding VECTOR(768), 
+    url TEXT,
+    UNIQUE (headline, publish_date)
+);
+
+Step 1: Data Extraction & Regex Filtering
+Do not run NLP on all 4.2 million rows. Write a function using SQLAlchemy and pandas to pull the headlines and filter them down to an "Education Policy" corpus. A headline must contain at least one keyword from Category A (Policy) AND at least one from Category B (Geography) to be kept.
+
+    Category A (Policy): "NEP", "National Education Policy", "SEP", "UGC", "Higher Education"
+
+    Category B (Geography): "Karnataka", "Tamil Nadu", "Bangalore", "Chennai", "Bengaluru"
+
+    Category C (Friction Points - Optional but prioritize if present): "delay", "protest", "KEA", "seat blocking", "syllabus", "fees", "vacant"
+
+Step 2: RoBERTa Sentiment Scoring
+
+    Load a pre-trained HuggingFace RoBERTa model optimized for news or political sentiment (e.g., cardiffnlp/twitter-roberta-base-sentiment-latest or similar).
+
+    Process the filtered headlines in batches (e.g., batch size 32 or 64) to prevent memory crashes. Use tqdm for a progress bar.
+
+    The model must map its output to a continuous polarity score ranging from -1.0 (Highly Negative) to +1.0 (Highly Positive).
+
+Step 3: Database Update
+
+    Take the generated sentiment scores and run an UPDATE operation on the news_corpus table, specifically targeting the roberta_sentiment_score column for the matching article_id.
+
+    Ensure this database operation is batched and uses safe SQLAlchemy transactions.
+
+Step 4: Time-Series Aggregation Method
+
+    Write a secondary function that queries the updated database, groups the scored headlines by Year and Month (and by State based on the Geography keywords), and calculates the Rolling Average Sentiment Score (e.g., a 3-month rolling average).
+
+    Return this as a clean pandas DataFrame ready to be plotted via matplotlib over my Difference-in-Differences (DiD) institutional data.
+
+Constraints:
+
+    Include connection pooling for SQLAlchemy.
+
+    Handle potential CUDA/MPS device assignments automatically if a GPU is available, otherwise default to CPU.
+
+    Provide clean, modular functions with docstrings. Output the full .py file structure.

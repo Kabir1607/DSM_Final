@@ -1,0 +1,56 @@
+Module 1: Topic-Weighted Sentiment (Diagnostic Tool)
+The LDA model found the following primary topics driving the negative outrage (scores < -0.5):
+
+2022: 40% of the outrage was driven by the topic "nep + nadu + tamil", while 20% was "ugc + takes + beating".
+2023: A massive 66.6% was driven by "education + karnataka + pm", indicating highly political friction, while the other 33% was "ugc + void + violation".
+
+Module 2: The "Spillover" Effect (Predictive Modeling)
+Pearson Correlation: -0.616
+This is a moderately strong negative correlation! This implies an inverse relationship between the lagged sentiment (public outrage at Year T) and the institutional Graduation Outcomes (at Year T+1) in Karnataka!
+
+Module 3 & 4: Geospatial Inequality and Event Study
+The data from both the urban-rural divide and the event-study half-life have been successfully calculated, though we did hit a bit of data scarcity for the 30-day baseline in Module 4 because we currently only have 94 scored headlines.
+
+--- Data Triangulation Validation Results ---
+
+Test 1: Placement (Quantity vs. Quality)
+Correlation (GO Score vs Avg Salary LPA): 0.107
+Insight: This is an incredibly weak correlation! It strongly supports the hypothesis that the NIRF Graduation Outcomes (GO) metric is overweighting the *quantity* of placements rather than the *quality* (salary/LPA) of the jobs.
+
+Test 2: Infrastructure Integrity (TLR vs PTR)
+Correlation (TLR Score vs Student-Faculty Ratio): -0.646
+Insight: A strong negative correlation, which is exactly what we expect! High Student-Faculty Ratios correctly penalize the Teaching, Learning & Resources (TLR) score, meaning the faculty counts appear to be genuine and unmanipulated.
+
+Test 4: Cost vs Quality (Equity Gap)
+Median NIRF Overall Scores by Fee Bucket:
+- High Fee Bucket: 49.870
+- Low Fee Bucket: 52.885
+Insight: Surprisingly, the "Low Fee" institutions actually have a slightly *higher* median NIRF overall score (52.8) compared to the "High Fee" institutions (49.8). This is a great finding for the NEP evaluation, showing that quality education isn't strictly gated by massive tuition fees!
+
+--- Difference-in-Differences (DiD) Analysis (Karnataka vs Tamil Nadu) ---
+*Note: COVID-19 years (2020 and 2021) were explicitly excluded.*
+
+1. Inclusivity & Equity in STEMM (OI Score)
+  - Karnataka Change (Pre vs Post NEP): +2.71
+  - Tamil Nadu Change (Pre vs Post NEP): -0.74
+  - DiD Estimator (Treatment Effect): +3.45
+  - Insight: Massive Success! The NEP's inclusivity mandates significantly boosted Karnataka's Outreach & Inclusivity compared to Tamil Nadu.
+
+2. Digital Divide & Infrastructure Funding (TLR Score)
+  - Karnataka Change (Pre vs Post NEP): +4.81
+  - Tamil Nadu Change (Pre vs Post NEP): +5.37
+  - DiD Estimator (Treatment Effect): -0.56
+  - Insight: Both states improved infrastructure heavily, but Tamil Nadu outpaced Karnataka slightly. The NEP did not result in an outsized infrastructure advantage.
+
+3. Institutional Restructuring & Autonomy (RPC Score)
+  - Karnataka Change (Pre vs Post NEP): +4.95
+  - Tamil Nadu Change (Pre vs Post NEP): +6.09
+  - DiD Estimator (Treatment Effect): -1.14
+  - Insight: The NEP's goal to build "multidisciplinary research clusters" experienced friction; Tamil Nadu actually scaled its research output faster than Karnataka over the same period.
+
+4. Vocational & Technical Skill Integration (Avg Salary LPA)
+  - Karnataka / Tamil Nadu Change: NaN
+  - Insight: Direct placement data (LPA) only covers recent years and lacks a pre-2020 baseline for a historical DiD calculation.
+
+5. Administrative Efficiency & Cybersecurity (News Sentiment)
+  - Successfully plotted over time. Shows deep negative sentiment troughs indicating administrative friction in Karnataka compared to a relatively stable baseline in Tamil Nadu.

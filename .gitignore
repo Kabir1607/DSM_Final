@@ -1,0 +1,9 @@
+*.csv
+*.db
+venv/
+final_project/
+.env
+__pycache__/
+*.pyc
+.streamlit/
+.ipynb_checkpoints/
