@@ -189,7 +189,7 @@ if page == "Database Architecture":
 elif page == "Research & Insights":
     st.markdown('<div class="main-title">Analyzing NEP 2020: The Karnataka Counterfactual</div>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4 = st.tabs(["Methodology & Mapping", "Data Triangulation", "The DiD Framework", "Sentiment Overlay"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Methodology & Mapping", "Data Triangulation", "The DiD Framework", "Sentiment Overlay", "Reconsiderations"])
     
     with tab1:
         st.markdown("### Reading the Law: Policy Mapping")
@@ -227,7 +227,6 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
             </div>
             """, unsafe_allow_html=True)
-            # Replaced with your explicitly requested image paths
             img_t1 = load_image("GO_AVERGE_PLACEMENT.png")
             if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
             
@@ -240,7 +239,6 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
             </div>
             """, unsafe_allow_html=True)
-            # Replaced with your explicitly requested image paths
             img_t2 = load_image("NIRF_STUDENT_TEACHER.png")
             if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
 
@@ -315,6 +313,28 @@ elif page == "Research & Insights":
             </ul>
         </div>
         """, unsafe_allow_html=True)
+        
+    with tab5:
+        st.markdown("### Conclusions & Policy Recommendations")
+        st.info("**The NEP succeeded in equity but failed in execution.**")
+        
+        st.markdown("""
+        <div class="glass-card">
+            <ul style="margin-bottom: 0;">
+                <li><b>Address the "Unfunded Mandate":</b> Match structural demands with actual capital expenditure in the SEP 2025.</li>
+                <li><b>Reform Evaluation Metrics:</b> Prioritize high-paying job outcomes (LPA thresholds) rather than raw placement volume.</li>
+                <li><b>Prioritize Administrative Stability:</b> Public outrage is statistically linked to downstream failure.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### Future Betterments")
+        st.write("The analysis would benefit from highly domain-specific evaluations (e.g., separating Medical from Engineering).")
+        
+        st.markdown("### Domain Expertise Disclaimer")
+        st.warning("""
+        I approached this project strictly from a data-science perspective without prior knowledge of the Indian Education System. Consulting a dedicated domain expert in local educational policy would have greatly enhanced the qualitative interpretation of these signals.
+        """)
 
 # 6. Page: Agentic RAG Interface
 elif page == "Agentic Interrogator":
