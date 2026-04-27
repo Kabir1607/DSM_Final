@@ -64,3 +64,6 @@ Constraints:
     Handle potential CUDA/MPS device assignments automatically if a GPU is available, otherwise default to CPU.
 
     Provide clean, modular functions with docstrings. Output the full .py file structure.
+
+
+    Give me a graph that looks at the overall sentiment alongside the TLR, OI and GO scores.

@@ -108,13 +108,15 @@ def handle_sql_query(prompt: str) -> str:
 
 def handle_rag_query(prompt: str) -> str:
     try:
-        embed_response = retry_gemini(genai.embed_content, model="models/gemini-embedding-001", content=prompt, task_type="retrieval_query")
+        # BUG FIX 1: Changed model to valid 'models/embedding-001' 
+        embed_response = retry_gemini(genai.embed_content, model="models/embedding-001", content=prompt, task_type="retrieval_query")
         prompt_embedding = embed_response['embedding']
         
         with engine.connect() as conn:
             vec_str = "[" + ",".join(map(str, prompt_embedding)) + "]"
-            # Utilizing the HNSW index on the embedding column for rapid Cosine Distance (<=>) retrieval
-            query = text("SELECT document_name, chunk_text FROM policy_documents ORDER BY embedding <=> :vec LIMIT 4")
+            
+            # BUG FIX 2: Explicitly cast :vec to vector type to prevent Postgres operator errors
+            query = text("SELECT document_name, chunk_text FROM policy_documents ORDER BY embedding <=> CAST(:vec AS vector) LIMIT 4")
             rows = conn.execute(query, {"vec": vec_str}).fetchall()
             
         if not rows: return "No relevant policy documents found."
