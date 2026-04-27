@@ -126,7 +126,14 @@ def handle_rag_query(prompt: str) -> str:
         return f"Retrieval or API Error: {str(e)}"
 
 def load_image(path):
-    possible_paths = [path, f"../{path}", f"kabir1607/dsm_final/DSM_Final-ebbc1f86654aeea8a39aef377cd119d9d3eecb82/{path}"]
+    # Added src/ specific lookups to ensure the image is found regardless of execution directory
+    possible_paths = [
+        path, 
+        f"src/{path}", 
+        f"../{path}", 
+        f"../src/{path}",
+        f"kabir1607/dsm_final/DSM_Final-14937987073ddfb6dac391f62901dd2eef1902cb/src/{path}"
+    ]
     for p in possible_paths:
         if os.path.exists(p): return Image.open(p)
     return None
@@ -220,7 +227,8 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
             </div>
             """, unsafe_allow_html=True)
-            img_t1 = load_image("image_d74f9c.jpg")
+            # Replaced with your explicitly requested image paths
+            img_t1 = load_image("GO_AVERGE_PLACEMENT.png")
             if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
             
         with col_t2:
@@ -232,7 +240,8 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
             </div>
             """, unsafe_allow_html=True)
-            img_t2 = load_image("image_d74f5c.jpg")
+            # Replaced with your explicitly requested image paths
+            img_t2 = load_image("NIRF_STUDENT_TEACHER.png")
             if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
 
     with tab3:
