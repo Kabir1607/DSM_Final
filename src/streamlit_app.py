@@ -1,6 +1,7 @@
 import os
 import urllib.parse
 import time
+import re
 import streamlit as st
 import google.generativeai as genai
 from sqlalchemy import create_engine, text
@@ -68,17 +69,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 2. Resilient Agentic Router Logic (With Exponential Backoff for Rate Limits)
+# 2. Resilient Agentic Router Logic (Smarter Quota Handling)
 def retry_gemini(func, *args, **kwargs):
-    """Wrapper to handle Gemini API rate limits with exponential backoff."""
-    max_retries = 4
+    """Wrapper to handle Gemini API rate limits with dynamic quota parsing."""
+    max_retries = 3
     for attempt in range(max_retries):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower():
+            error_msg = str(e)
+            if "429" in error_msg or "quota" in error_msg.lower() or "exhausted" in error_msg.lower():
                 if attempt < max_retries - 1:
-                    sleep_time = 2 ** attempt  # 1s, 2s, 4s...
+                    # Parse the exact wait time requested by Google from the error string
+                    match = re.search(r"retry in (\d+\.?\d*)s", error_msg, re.IGNORECASE)
+                    if match:
+                        sleep_time = float(match.group(1)) + 2.0  # Add a 2-second buffer to be safe
+                    else:
+                        sleep_time = 60.0 # Default to 1 minute (Free tier limit reset time)
+                    
+                    st.warning(f"⏳ **Gemini API Free Tier Limit Reached.** Pausing for {int(sleep_time)} seconds to refresh quota... Please do not close the window.")
                     time.sleep(sleep_time)
                     continue
             raise e
@@ -108,14 +117,13 @@ def handle_sql_query(prompt: str) -> str:
 
 def handle_rag_query(prompt: str) -> str:
     try:
-        # BUG FIX 1: Changed model to valid 'models/embedding-001' 
-        embed_response = retry_gemini(genai.embed_content, model="models/embedding-001", content=prompt, task_type="retrieval_query")
+        embed_response = retry_gemini(genai.embed_content, model="models/text-embedding-004", content=prompt, task_type="retrieval_query")
         prompt_embedding = embed_response['embedding']
         
         with engine.connect() as conn:
             vec_str = "[" + ",".join(map(str, prompt_embedding)) + "]"
             
-            # BUG FIX 2: Explicitly cast :vec to vector type to prevent Postgres operator errors
+            # Explicitly cast :vec to vector type to prevent Postgres operator errors
             query = text("SELECT document_name, chunk_text FROM policy_documents ORDER BY embedding <=> CAST(:vec AS vector) LIMIT 4")
             rows = conn.execute(query, {"vec": vec_str}).fetchall()
             
@@ -128,7 +136,6 @@ def handle_rag_query(prompt: str) -> str:
         return f"Retrieval or API Error: {str(e)}"
 
 def load_image(path):
-    # Added src/ specific lookups to ensure the image is found regardless of execution directory
     possible_paths = [
         path, 
         f"src/{path}", 
