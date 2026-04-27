@@ -195,7 +195,7 @@ if page == "Database Architecture":
 elif page == "Research & Insights":
     st.markdown('<div class="main-title">Analyzing NEP 2020: The Karnataka Counterfactual</div>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Methodology & Mapping", "Data Triangulation", "The DiD Framework", "Sentiment Overlay", "Reconsiderations"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Methodology & Mapping", "Data Triangulation", "The DiD Framework", "Sentiment Overlay", "Conclusions"])
     
     with tab1:
         st.markdown("### Reading the Law: Policy Mapping")
@@ -223,30 +223,28 @@ elif page == "Research & Insights":
     with tab2:
         st.markdown("### Exploratory Data Analysis & Triangulation")
         st.write("Before running the causal models, the government index scores were cross-validated against raw, ground-truth variables to ensure data integrity.")
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            st.markdown("""
-            <div class="glass-card">
-                <h4>Test 1: Quantity vs. Quality</h4>
-                <p>Cross-validated NIRF Graduation Outcomes (GO) against raw average starting salaries (LPA).</p>
-                <p style="color:#FBBF24;"><strong>Very Weak Correlation (r = 0.107)</strong></p>
-                <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            img_t1 = load_image("final_visuals/GO_AVERGE_PLACEMENT.png")
-            if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
+        
+        st.markdown("#### Test 1: Quantity vs. Quality")
+        img_t1 = load_image("final_visuals/GO_AVERGE_PLACEMENT.png")
+        if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
+        st.markdown("""
+        <div class="glass-card">
+            <p>Cross-validated NIRF Graduation Outcomes (GO) against raw average starting salaries (LPA).</p>
+            <p style="color:#FBBF24;"><strong>Very Weak Correlation (r = 0.107)</strong></p>
+            <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
+        </div>
+        """, unsafe_allow_html=True)
             
-        with col_t2:
-            st.markdown("""
-            <div class="glass-card">
-                <h4>Test 2: Infrastructure Integrity</h4>
-                <p>Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios.</p>
-                <p style="color:#34D399;"><strong>Strong Negative Correlation (r = -0.646)</strong></p>
-                <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            img_t2 = load_image("final_visuals/NIRF_STUDENT_TEACHER.png")
-            if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
+        st.markdown("#### Test 2: Infrastructure Integrity")
+        img_t2 = load_image("final_visuals/NIRF_STUDENT_TEACHER.png")
+        if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
+        st.markdown("""
+        <div class="glass-card">
+            <p>Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios.</p>
+            <p style="color:#34D399;"><strong>Strong Negative Correlation (r = -0.646)</strong></p>
+            <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     with tab3:
         st.markdown("### The Intuition: Why Difference-in-Differences (DiD)?")
@@ -264,57 +262,49 @@ elif page == "Research & Insights":
         
         # Metric 1: OI
         st.markdown("#### 1. Inclusivity & Equity in STEMM (OI Score)")
-        col_oi1, col_oi2, col_oi3 = st.columns([1, 1.25, 1.25])
-        with col_oi1:
-            st.metric(label="DiD Estimator", value="+3.45", delta="Massive Success")
-            st.write("The mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
-        with col_oi2:
-            img_oi = load_image("final_visuals/did_bar_oi_score.png")
-            if img_oi: st.image(img_oi, use_container_width=True)
-        with col_oi3:
-            img_oi_ts = load_image("final_visuals/did_timeseries_oi_score.png")
-            if img_oi_ts: st.image(img_oi_ts, caption="Pre-and-Post Parallel Trends divergence", use_container_width=True)
+        img_oi = load_image("final_visuals/did_bar_oi_score.png")
+        if img_oi: st.image(img_oi, use_container_width=True)
+        
+        img_oi_ts = load_image("final_visuals/did_timeseries_oi_score.png")
+        if img_oi_ts: st.image(img_oi_ts, caption="Pre-and-Post Parallel Trends divergence", use_container_width=True)
+        
+        st.metric(label="DiD Estimator", value="+3.45", delta="Massive Success")
+        st.write("The mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
         st.divider()
             
         # Metric 2: TLR
         st.markdown("#### 2. Digital Divide & Infrastructure (TLR Score)")
-        col_tlr1, col_tlr2, col_tlr3 = st.columns([1, 1.25, 1.25])
-        with col_tlr1:
-            st.metric(label="DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
-            st.write("The government required institutions to scale but failed to provide the capital. Tamil Nadu outpaced Karnataka in scaling.")
-        with col_tlr2:
-            img_tlr = load_image("final_visuals/did_bar_tlr_score.png")
-            if img_tlr: st.image(img_tlr, use_container_width=True)
-        with col_tlr3:
-            img_tlr_ts = load_image("final_visuals/did_timeseries_tlr_score.png")
-            if img_tlr_ts: st.image(img_tlr_ts, caption="Notice Tamil Nadu accelerating while Karnataka stagnates post-2021", use_container_width=True)
+        img_tlr = load_image("final_visuals/did_bar_tlr_score.png")
+        if img_tlr: st.image(img_tlr, use_container_width=True)
+        
+        img_tlr_ts = load_image("final_visuals/did_timeseries_tlr_score.png")
+        if img_tlr_ts: st.image(img_tlr_ts, caption="Notice Tamil Nadu accelerating while Karnataka stagnates post-2021", use_container_width=True)
+        
+        st.metric(label="DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
+        st.write("The government required institutions to scale but failed to provide the capital. Tamil Nadu outpaced Karnataka in scaling.")
         st.divider()
             
         # Metric 3: RPC
         st.markdown("#### 3. Institutional Restructuring (RPC Score)")
-        col_rpc1, col_rpc2, col_rpc3 = st.columns([1, 1.25, 1.25])
-        with col_rpc1:
-            st.metric(label="DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
-            st.write("The goal to build 'multidisciplinary research clusters' experienced severe friction, stalling Karnataka's research momentum.")
-        with col_rpc2:
-            img_rpc = load_image("final_visuals/did_bar_rpc_score.png")
-            if img_rpc: st.image(img_rpc, use_container_width=True)
-        with col_rpc3:
-            img_rpc_ts = load_image("final_visuals/did_timeseries_rpc_score.png")
-            if img_rpc_ts: st.image(img_rpc_ts, caption="Structural drop in Karnataka relative to control.", use_container_width=True)
+        img_rpc = load_image("final_visuals/did_bar_rpc_score.png")
+        if img_rpc: st.image(img_rpc, use_container_width=True)
+        
+        img_rpc_ts = load_image("final_visuals/did_timeseries_rpc_score.png")
+        if img_rpc_ts: st.image(img_rpc_ts, caption="Structural drop in Karnataka relative to control.", use_container_width=True)
+        
+        st.metric(label="DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
+        st.write("The goal to build 'multidisciplinary research clusters' experienced severe friction, stalling Karnataka's research momentum.")
         st.divider()
 
         # Metric 4: GO
         st.markdown("#### 4. Vocational Integration (GO Score)")
-        col_go1, col_go2, col_go3 = st.columns([1, 1.25, 1.25])
-        with col_go1:
-            st.write("Tracking graduation outcomes (placement rates and median salaries) post-implementation.")
-        with col_go2:
-            img_go = load_image("final_visuals/did_bar_go_score.png")
-            if img_go: st.image(img_go, use_container_width=True)
-        with col_go3:
-            img_go_ts = load_image("final_visuals/did_timeseries_go_score.png")
-            if img_go_ts: st.image(img_go_ts, caption="Time series comparison of Graduation Outcomes", use_container_width=True)
+        img_go = load_image("final_visuals/did_bar_go_score.png")
+        if img_go: st.image(img_go, use_container_width=True)
+        
+        img_go_ts = load_image("final_visuals/did_timeseries_go_score.png")
+        if img_go_ts: st.image(img_go_ts, caption="Time series comparison of Graduation Outcomes", use_container_width=True)
+        
+        st.write("Tracking graduation outcomes (placement rates and median salaries) post-implementation.")
         st.divider()
 
         # Limitations Section
@@ -327,13 +317,11 @@ elif page == "Research & Insights":
         st.markdown("### Sentiment Mismatch & The Spillover Effect")
         st.write("By taking a Rolling Average Sentiment Trendline from historical news corpora and plotting it alongside the DiD graphs, a stark mismatch emerges between government mandates and on-the-ground reality.")
         
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            img5 = load_image("final_visuals/did_timeseries_sentiment.png")
-            if img5: st.image(img5, use_container_width=True, caption="Historical Sentiment Trendline")
-        with col_s2:
-            img6 = load_image("final_visuals/ts_sentiment_corr_tlr_score.png")
-            if img6: st.image(img6, use_container_width=True, caption="Sentiment Correlated with TLR Resource Declines")
+        img5 = load_image("final_visuals/did_timeseries_sentiment.png")
+        if img5: st.image(img5, use_container_width=True, caption="Historical Sentiment Trendline")
+        
+        img6 = load_image("final_visuals/ts_sentiment_corr_tlr_score.png")
+        if img6: st.image(img6, use_container_width=True, caption="Sentiment Correlated with TLR Resource Declines")
         
         st.markdown("""
         <div class="glass-card">
@@ -346,9 +334,22 @@ elif page == "Research & Insights":
         """, unsafe_allow_html=True)
         
     with tab5:
-        st.markdown("### Conclusions & Policy Recommendations")
-        st.info("**The NEP succeeded in equity but failed in execution.**")
+        st.markdown("### The Narrative Arc")
         
+        st.markdown("""
+        <div class="glass-card">
+            <ul>
+                <li><b>The Equity Success (OI Score):</b> The policy mandate for flexible tracks and multidisciplinary inclusion worked incredibly well. Karnataka saw a massive positive DiD estimator (+3.45) in Outreach & Inclusivity compared to the control state, successfully boosting the representation of marginalized demographics in STEMM.</li>
+                <li><b>The "Unfunded Mandate" Reality (TLR Score):</b> The digital divide and infrastructure demands of the NEP severely strained institutions. With a -0.56 DiD estimator, Karnataka failed to match the capital expenditure and faculty scaling required for the massive multidisciplinary restructuring, actually falling behind the control group. The strong negative correlation (r = -0.646) between the TLR score and raw Student-Faculty ratios confirms that classrooms became overcrowded.</li>
+                <li><b>Institutional Friction (RPC Score):</b> The push to convert institutions into heavy research clusters backfired in the short term. The DiD estimator (-1.14) shows that research momentum stalled due to the sheer administrative burden of transitioning syllabi, faculties, and structures.</li>
+                <li><b>The Public Outrage Spillover:</b> The NLP sentiment analysis perfectly mirrors the structural failures. While the government praised the rollout, local news sentiment tracking shows deep negative troughs. More importantly, this negative sentiment heavily correlates with failures in teaching resources. The administrative chaos (examination issues, teacher workloads) actively eroded placement success and institutional stability.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("**Ultimate Conclusion:** The NEP succeeded conceptually in driving equity but stumbled operationally due to inadequate funding and massive transition friction.")
+        
+        st.markdown("### Policy Recommendations")
         st.markdown("""
         <div class="glass-card">
             <ul style="margin-bottom: 0;">
