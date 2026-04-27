@@ -1,5 +1,6 @@
 import os
 import urllib.parse
+import time
 import streamlit as st
 import google.generativeai as genai
 from sqlalchemy import create_engine, text
@@ -37,79 +38,93 @@ def init_connection():
 
 engine = init_connection()
 
-# Custom CSS for Premium Design & Increased Font Size
+# Custom CSS for Premium Design & Increased Font Size (Sci-Fi / Clean Dark Aesthetic)
 st.markdown("""
 <style>
-    /* INCREASE GLOBAL FONT SIZE */
-    html, body, [class*="css"] {
-        font-size: 20px !important; 
-    }
+    html, body, [class*="css"] { font-size: 18px !important; }
     
-    .stApp { background-color: #0B1121; color: #F8FAFC; }
+    .stApp { background-color: #0A0E17; color: #E2E8F0; font-family: 'Inter', sans-serif; }
     .main-title {
-        font-size: 3.5rem !important; font-weight: 800;
-        background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+        font-size: 3rem !important; font-weight: 800;
+        background: linear-gradient(135deg, #38BDF8 0%, #818CF8 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem; line-height: 1.2;
+        margin-bottom: 0.5rem; line-height: 1.2; letter-spacing: -0.5px;
     }
     .sub-title {
-        font-size: 1.4rem !important; color: #94A3B8; border-left: 4px solid #8B5CF6;
+        font-size: 1.3rem !important; color: #94A3B8; border-left: 4px solid #818CF8;
         padding-left: 1rem; margin-bottom: 2rem;
     }
     .glass-card {
-        background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148, 163, 184, 0.1);
-        border-radius: 1rem; padding: 2rem; margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); backdrop-filter: blur(4px);
     }
-    .big-metric {
-        font-size: 3rem; font-weight: 900;
-        margin: 0; padding: 0; line-height: 1;
-    }
-    .weak-corr { color: #FBBF24; }
-    .strong-corr { color: #34D399; }
+    .big-metric { font-size: 2.5rem; font-weight: 900; margin: 0; padding: 0; line-height: 1; }
+    .highlight-blue { color: #38BDF8; font-weight: bold; }
+    .highlight-green { color: #34D399; font-weight: bold; }
     
     /* Hide Streamlit Branding */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# 2. Agentic Router Logic (Unchanged)
+# 2. Resilient Agentic Router Logic (With Exponential Backoff for Rate Limits)
+def retry_gemini(func, *args, **kwargs):
+    """Wrapper to handle Gemini API rate limits with exponential backoff."""
+    max_retries = 4
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower() or "exhausted" in str(e).lower():
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt  # 1s, 2s, 4s...
+                    time.sleep(sleep_time)
+                    continue
+            raise e
+
 def get_routing_intent(prompt: str) -> str:
     routing_prompt = f"""
     You are an intelligent intent router. Classify the user query into exactly one word: "SQL" (for tabular data/placements) or "RAG" (for policy PDFs).
     User Query: {prompt}
     """
-    response = model.generate_content(routing_prompt)
+    response = retry_gemini(model.generate_content, routing_prompt)
     return "SQL" if "SQL" in response.text.strip().upper() else "RAG"
 
 def handle_sql_query(prompt: str) -> str:
     schema = "Table: nirf_rankings (institution_id, year, tlr_score, rpc_score, oi_score, perception_score, overall_score)\\nTable: placements (institution_id, year, no_of_students_placed, avg_salary_lpa)"
     sql_prompt = f"Generate raw Postgres SQL for this schema to answer: {prompt}\nSchema: {schema}\nReturn ONLY SQL."
-    raw_sql = model.generate_content(sql_prompt).text.strip().replace("```sql", "").replace("```", "").strip()
+    
     try:
+        raw_sql = retry_gemini(model.generate_content, sql_prompt).text.strip().replace("```sql", "").replace("```", "").strip()
         with engine.connect() as conn:
             result = conn.execute(text(raw_sql))
             rows = result.fetchall()
             if not rows: return "No tabular data matched your request."
             data_str = " | ".join(result.keys()) + "\\n" + "\\n".join([" | ".join(str(v) for v in r) for r in rows])
-            return model.generate_content(f"Answer '{prompt}' using this data:\n{data_str}").text.strip()
+            return retry_gemini(model.generate_content, f"Answer '{prompt}' using this data:\n{data_str}").text.strip()
     except Exception as e:
-        return f"Database Error: {str(e)}"
+        return f"Database or API Error: {str(e)}"
 
 def handle_rag_query(prompt: str) -> str:
     try:
-        prompt_embedding = genai.embed_content(model="models/gemini-embedding-001", content=prompt, task_type="retrieval_query")['embedding']
+        embed_response = retry_gemini(genai.embed_content, model="models/gemini-embedding-001", content=prompt, task_type="retrieval_query")
+        prompt_embedding = embed_response['embedding']
+        
         with engine.connect() as conn:
             vec_str = "[" + ",".join(map(str, prompt_embedding)) + "]"
+            # Utilizing the HNSW index on the embedding column for rapid Cosine Distance (<=>) retrieval
             query = text("SELECT document_name, chunk_text FROM policy_documents ORDER BY embedding <=> :vec LIMIT 4")
             rows = conn.execute(query, {"vec": vec_str}).fetchall()
+            
         if not rows: return "No relevant policy documents found."
         context = "".join([f"Source: {r[0]}\\nExcerpt: {r[1]}\\n\\n" for r in rows])
-        return model.generate_content(f"Answer '{prompt}' using ONLY these policy excerpts:\n{context}").text.strip()
+        
+        system_prompt = f"Answer '{prompt}' comprehensively using ONLY these official policy excerpts:\n{context}"
+        return retry_gemini(model.generate_content, system_prompt).text.strip()
     except Exception as e:
-        return f"Retrieval Error: {str(e)}"
+        return f"Retrieval or API Error: {str(e)}"
 
-# Helper function to load images safely
 def load_image(path):
     possible_paths = [path, f"../{path}", f"kabir1607/dsm_final/DSM_Final-ebbc1f86654aeea8a39aef377cd119d9d3eecb82/{path}"]
     for p in possible_paths:
@@ -117,150 +132,149 @@ def load_image(path):
     return None
 
 # 3. Sidebar Navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Research Blog", "Agentic RAG Router"])
+st.sidebar.title("System Access")
+page = st.sidebar.radio("Modules", ["Research & Insights", "Database Architecture", "Agentic Interrogator"])
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Database Status:** ✅ Connected")
+st.sidebar.markdown("**PostgreSQL Cluster:** <span style='color:#34D399'>✅ Online</span>", unsafe_allow_html=True)
+st.sidebar.markdown("**Vector Store Engine:** <span style='color:#34D399'>✅ pgvector</span>", unsafe_allow_html=True)
 
-# 4. Page 1: Research Blog
-if page == "Research Blog":
-    st.markdown('<div class="main-title">Analyzing the Effects of NEP 2020 in Karnataka</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">To what extent have the goals the National Education Policy (NEP) set out for itself in Karnataka been realized compared to the counterfactual (Tamil Nadu)?</div>', unsafe_allow_html=True)
+# 4. Page: Database Architecture
+if page == "Database Architecture":
+    st.markdown('<div class="main-title">Data Topology & Indexing Strategy</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">A breakdown of the underlying storage, scale, and retrieval optimization.</div>', unsafe_allow_html=True)
     
-    # Interactive Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Methodology", "Data Triangulation", "The DiD Findings", "Conclusions"])
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        <div class="glass-card">
+            <h3>Tabular Data Corpus</h3>
+            <ul>
+                <li><b>NIRF Institutional Data:</b> ~10 years of longitudinal rankings and sub-scores.</li>
+                <li><b>AISHE Microdata:</b> Exhaustive institutional enrollment and infrastructure flags.</li>
+                <li><b>Placement Outcomes:</b> Consolidated salary (LPA) and placement percentage data across top engineering and state institutions.</li>
+                <li><b>Macroeconomic Data:</b> PLFS unemployment rates to control for state-level economic shifts.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div class="glass-card">
+            <h3>Unstructured Text Corpus</h3>
+            <ul>
+                <li><b>Policy Documents:</b> Parsed and chunked PDFs (NEP 2020, Karnataka SEP 2025, UGC Circulars).</li>
+                <li><b>News Headlines (Sentiment):</b> ~4.2 Million historical regional news headlines processed for NLP scoring.</li>
+                <li><b>Articles:</b> Financial news and GDELT API pulls covering transition resistance.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    st.markdown("### Indexing Strategy (The Engine behind the Agent)")
+    st.info("The database schema was purposefully engineered to support real-time Agentic routing without latency bottlenecks.")
+    st.markdown("""
+    * **HNSW (Hierarchical Navigable Small World) Index:** Applied to the `vector(768)` embedding columns. This is why the RAG system is fast; instead of computing cosine distance against every policy chunk sequentially, it navigates a multi-layered graph to find the nearest semantic neighbors instantly.
+    * **GIN (Generalized Inverted Index):** Applied via `to_tsvector` on the massive 4.2M news headline corpus. This allows for instantaneous lexical keyword matching (e.g., finding exact mentions of "NEP" or "KEA counseling") without wasting LLM tokens.
+    * **B-Tree Indexes:** Standard indexing heavily applied to the `year` and `publish_date` columns across all fact tables. This perfectly optimizes the crucial "Pre-2020" vs "Post-2021" time-window filtering required for the DiD models.
+    """)
+
+# 5. Page: Research Blog
+elif page == "Research & Insights":
+    st.markdown('<div class="main-title">Analyzing NEP 2020: The Karnataka Counterfactual</div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["Methodology & Policy Mapping", "The DiD Framework", "Sentiment Overlay & Findings"])
     
     with tab1:
-        st.markdown("### Context & Motivation")
-        st.write("Karnataka was an early adopter of the NEP, while states like Tamil Nadu actively resisted it. Given the widespread political dissatisfaction leading to the proposed State Education Policy (SEP 2025), this project empirically measures transition friction.")
+        st.markdown("### Reading the Law: Policy Mapping")
+        st.write("Abstract policy goals cannot be measured directly. To run an empirical evaluation, the first step involved parsing the national NEP 2020 PDF and Karnataka's specific implementation guidelines to extract what they were *actually* trying to do. These directives were then mapped to quantitative tracking variables:")
         
-        st.markdown("### The Policy Metrics: Mapping & Justification")
-        st.write("Abstract policy goals cannot be measured directly. I mapped specific NEP directives to quantitative NIRF and Sentiment variables:")
-        
-        with st.expander("1. Vocational Skill Integration ➔ mapped to **Graduation Outcomes (GO)**", expanded=True):
-            st.write("**Justification:** The NEP heavily emphasizes employability and skills. The GO score measures exact placement rates and higher education progression.")
-        with st.expander("2. Digital Divide & Infrastructure ➔ mapped to **Teaching, Learning & Resources (TLR)**"):
-            st.write("**Justification:** Transitioning to a 4-year multidisciplinary model requires massive physical and digital CapEx. TLR measures Pupil-Teacher ratios and lab funding.")
-        with st.expander("3. Inclusivity in STEMM ➔ mapped to **Outreach & Inclusivity (OI)**"):
-            st.write("**Justification:** A core tenet of the NEP is increasing representation. OI directly measures the percentage of female and economically/socially disadvantaged students.")
-        with st.expander("4. Restructuring & Autonomy ➔ mapped to **Research Output (RPC)**"):
-            st.write("**Justification:** The NEP mandated institutions convert into heavy 'Multidisciplinary Research Clusters'. RPC tests if this research transition was successful.")
-        with st.expander("5. Administrative Efficiency ➔ mapped to **NLP Sentiment Tracking**"):
-            st.write("**Justification:** Raw data on KEA counseling delays and vacant seats is hidden from the public. Therefore, using RoBERTa on 4.2M regional news headlines acts as a perfect mathematical proxy for 'Transition Resistance' and public outrage.")
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            with st.expander("1. Vocational Skill Integration ➔ GO Score"):
+                st.write("**NEP Goal:** Boost employability and practical skills.")
+                st.write("**Evaluation Metric (GO):** Graduation Outcomes. Evaluates what happens to students after they finish courses, weighing student placement rates, median salary, and progression to higher studies.")
+            with st.expander("2. Digital Divide & CapEx ➔ TLR Score"):
+                st.write("**NEP Goal:** Establish massive multidisciplinary infrastructure.")
+                st.write("**Evaluation Metric (TLR):** Teaching, Learning & Resources. Measures core educational infrastructure, faculty-student ratio, and the financial resources/capital expenditure of the institution.")
+            with st.expander("3. Inclusivity in STEMM ➔ OI Score"):
+                st.write("**NEP Goal:** Increase representation across demographics.")
+                st.write("**Evaluation Metric (OI):** Outreach & Inclusivity. Captures demographic diversity, measuring the percentage of women, economically/socially disadvantaged students, and physically challenged students.")
+        with col_m2:
+            with st.expander("4. Institutional Restructuring ➔ RPC Score"):
+                st.write("**NEP Goal:** Convert institutions into heavy research clusters.")
+                st.write("**Evaluation Metric (RPC):** Research and Professional Practice. Reflects the academic and research output, evaluating the quantity and quality of publications, citations, and patents.")
+            with st.expander("5. Administrative Efficiency ➔ PERCEPTION & NLP"):
+                st.write("**NEP Goal:** Streamlined, centralized admissions.")
+                st.write("**Evaluation Metric:** Perception scores (peer/employer reputation) paired with RoBERTa NLP Sentiment tracking on local news to proxy public outrage and transition resistance.")
 
     with tab2:
-        st.markdown("### Exploratory Data Analysis & Triangulation")
-        st.write("Before running the causal models, the government index scores were cross-validated against raw, ground-truth variables.")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("""
-            <div class="glass-card">
-                <h4>Test 1: Quantity vs. Quality</h4>
-                <p>Cross-validated NIRF Graduation Outcomes against raw average starting salaries (LPA).</p>
-                <br>
-                <p class="big-metric weak-corr">r = 0.107</p>
-                <p style="color:#FBBF24;"><strong>Very Weak Correlation</strong></p>
-                <br>
-                <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.markdown("""
-            <div class="glass-card">
-                <h4>Test 2: Infrastructure Integrity</h4>
-                <p>Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios.</p>
-                <br>
-                <p class="big-metric strong-corr">r = -0.646</p>
-                <p style="color:#34D399;"><strong>Strong Negative Correlation</strong></p>
-                <br>
-                <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized.</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with tab3:
-        st.markdown("### The Difference-in-Differences (DiD) Results")
-        st.write("By isolating Karnataka's post-2020 growth from Tamil Nadu's baseline (excluding the COVID shock), we mathematically evaluated the NEP.")
+        st.markdown("### The Intuition: Why Difference-in-Differences (DiD)?")
+        st.markdown("""
+        <div class="glass-card">
+        To prove a policy *caused* an outcome, you cannot simply look at Karnataka before and after 2020. What if the entire country's education system naturally improved over that time?
+        <br><br>
+        DiD solves this by using a <b>Counterfactual</b>. We use Tamil Nadu (a state that actively resisted the NEP) as our Control Group, and Karnataka (an early adopter) as our Treatment Group.
+        <br><br>
+        <b>The Parallel Trends Assumption:</b> If Karnataka and Tamil Nadu were trending similarly <i>before</i> the policy (pre-2020), any sudden divergence between the two states <i>after</i> the policy (post-2021) can be mathematically attributed to the NEP itself, isolating it from general macroeconomic shifts.
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Metric 1
-        st.markdown("#### 1. Inclusivity & Equity in STEMM (OI Score)")
-        colA, colB = st.columns([1, 2])
+        st.markdown("### The Empirical Findings")
+        colA, colB = st.columns([1, 1.5])
         with colA:
-            st.metric(label="DiD Estimator (Treatment Effect)", value="+3.45", delta="Massive Success")
-            st.write("**Interpretation:** The NEP's mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
-        with colB:
-            img1 = load_image("did_analysis/did_bar_oi_score.png")
-            if img1: st.image(img1, use_container_width=True)
-        st.divider()
-
-        # Metric 2
-        st.markdown("#### 2. Digital Divide & Infrastructure Funding (TLR Score)")
-        colA, colB = st.columns([1, 2])
-        with colA:
-            st.metric(label="DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
-            st.write("**Interpretation:** The central government required institutions to scale, but failed to provide the capital. Tamil Nadu actually outpaced Karnataka in scaling.")
-        with colB:
-            img2 = load_image("did_analysis/did_bar_tlr_score.png")
-            if img2: st.image(img2, use_container_width=True)
-        st.divider()
-
-        # Metric 3
-        st.markdown("#### 3. Institutional Restructuring & Autonomy (RPC Score)")
-        colA, colB = st.columns([1, 2])
-        with colA:
-            st.metric(label="DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
-            st.write("**Interpretation:** The goal to build 'multidisciplinary research clusters' experienced friction, temporarily stalling Karnataka's research momentum.")
+            st.metric(label="OI Score (Inclusivity) DiD Estimator", value="+3.45", delta="Massive Success")
+            st.write("The mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
+            st.divider()
+            st.metric(label="TLR Score (Infrastructure) DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
+            st.write("The government required institutions to scale but failed to provide the capital. Tamil Nadu outpaced Karnataka in scaling.")
+            st.divider()
+            st.metric(label="RPC Score (Research) DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
+            st.write("The goal to build 'multidisciplinary research clusters' experienced severe friction, stalling Karnataka's research momentum.")
         with colB:
             img3 = load_image("did_analysis/did_bar_rpc_score.png")
-            if img3: st.image(img3, use_container_width=True)
-        st.divider()
+            if img3: st.image(img3, use_container_width=True, caption="Notice the structural drop in Karnataka relative to the control.")
 
-        # Metric 4 (Formerly 5)
-        st.markdown("#### 4. Administrative Efficiency & Cybersecurity (Sentiment)")
-        colA, colB = st.columns([1, 2])
-        with colA:
-            st.metric(label="Pearson Correlation", value="-0.616", delta="Spillover Effect", delta_color="inverse")
-            st.write("**Interpretation:** NLP tracking shows deep negative sentiment troughs in Karnataka. This public outrage acts as a leading indicator, correlating directly to a drop in student placement success the following year.")
-        with colB:
-            img5 = load_image("did_analysis/did_timeseries_sentiment.png")
-            if img5: st.image(img5, use_container_width=True)
-
-    with tab4:
-        st.markdown("### Conclusions & Policy Recommendations")
-        st.info("The NEP succeeded in equity but failed in execution.")
-        st.markdown("""
-        1. **Address the "Unfunded Mandate":** The government must match structural demands with actual capital expenditure.
-        2. **Reform Evaluation Metrics:** Move away from raw placement volume (GO) and institute LPA thresholds.
-        3. **Prioritize Administrative Stability:** Stop the policy whiplash to prevent downstream student failure (The Spillover Effect).
+    with tab3:
+        st.markdown("### Sentiment Mismatch & The Spillover Effect")
+        st.write("By taking a Rolling Average Sentiment Trendline from historical news corpora and plotting it alongside the DiD graphs, a stark mismatch emerges between government mandates and on-the-ground reality.")
         
-        > **Domain Expertise Note:** This analysis was conducted from a strict data-science perspective. Consulting a domain expert in Indian educational policy would greatly enhance the qualitative interpretation of these signals.
-        """)
+        img5 = load_image("did_analysis/did_timeseries_sentiment.png")
+        if img5: st.image(img5, use_container_width=True)
+        
+        st.markdown("""
+        <div class="glass-card">
+            <h4>The Insights</h4>
+            <ul>
+                <li><b>The Mismatch:</b> While government evaluations praised the rapid structural rollouts, NLP tracking reveals deep negative sentiment troughs in Karnataka regarding examination chaos, teacher workload, and counseling delays.</li>
+                <li><b>The Spillover Effect (r = -0.616):</b> This public outrage isn't just noise; it acts as a leading indicator. The data shows that drops in administrative sentiment strongly correlate with a subsequent drop in actual student placement success (GO score) the following year.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
 
-# 5. Page 2: Agentic RAG Interface (Unchanged)
-elif page == "Agentic RAG Router":
-    st.markdown('<div class="main-title">Agentic Database Router</div>', unsafe_allow_html=True)
-    st.markdown("Ask natural language questions. The Agent will dynamically route your query to execute **Text-to-SQL** (for tabular data) or **Semantic Vector Search** (for policy documents).")
+# 6. Page: Agentic RAG Interface
+elif page == "Agentic Interrogator":
+    st.markdown('<div class="main-title">Agentic Database Interrogator</div>', unsafe_allow_html=True)
+    st.markdown("Natural language routing. The engine dynamically decides whether to execute **Text-to-SQL** (for placements/rankings) or **HNSW Vector Search** (for policy PDFs).")
     
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Hello! Ask me about the data or the policy PDFs!", "type": "system"}]
+        st.session_state.messages = [{"role": "assistant", "content": "System ready. Query the data or policy documents.", "type": "system"}]
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            if message.get("type") == "sql": st.caption("🔍 Routed to **SQL Agent**")
-            elif message.get("type") == "rag": st.caption("📄 Routed to **Semantic Agent**")
+            if message.get("type") == "sql": st.caption("⚡ Executed via SQL Agent")
+            elif message.get("type") == "rag": st.caption("🧠 Executed via Semantic RAG Agent")
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("E.g. 'Show me 2024 placements' or 'What are the SEP funding rules?'"):
+    if prompt := st.chat_input("E.g. 'What was the average LPA in 2024?' or 'What does the NEP say about vocational skills?'"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing intent and routing..."):
+            with st.spinner("Classifying intent & searching..."):
                 intent = get_routing_intent(prompt)
                 if intent == "SQL":
-                    st.caption("🔍 Routed to **SQL Agent**")
+                    st.caption("⚡ Executed via SQL Agent")
                     response = handle_sql_query(prompt)
                 else:
-                    st.caption("📄 Routed to **Semantic Agent**")
+                    st.caption("🧠 Executed via Semantic RAG Agent")
                     response = handle_rag_query(prompt)
                 st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response, "type": intent.lower()})
