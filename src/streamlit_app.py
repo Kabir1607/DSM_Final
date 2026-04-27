@@ -80,12 +80,11 @@ def retry_gemini(func, *args, **kwargs):
             error_msg = str(e)
             if "429" in error_msg or "quota" in error_msg.lower() or "exhausted" in error_msg.lower():
                 if attempt < max_retries - 1:
-                    # Parse the exact wait time requested by Google from the error string
                     match = re.search(r"retry in (\d+\.?\d*)s", error_msg, re.IGNORECASE)
                     if match:
-                        sleep_time = float(match.group(1)) + 2.0  # Add a 2-second buffer to be safe
+                        sleep_time = float(match.group(1)) + 2.0
                     else:
-                        sleep_time = 60.0 # Default to 1 minute (Free tier limit reset time)
+                        sleep_time = 60.0
                     
                     st.warning(f"⏳ **Gemini API Free Tier Limit Reached.** Pausing for {int(sleep_time)} seconds to refresh quota... Please do not close the window.")
                     time.sleep(sleep_time)
@@ -122,8 +121,6 @@ def handle_rag_query(prompt: str) -> str:
         
         with engine.connect() as conn:
             vec_str = "[" + ",".join(map(str, prompt_embedding)) + "]"
-            
-            # Explicitly cast :vec to vector type to prevent Postgres operator errors
             query = text("SELECT document_name, chunk_text FROM policy_documents ORDER BY embedding <=> CAST(:vec AS vector) LIMIT 4")
             rows = conn.execute(query, {"vec": vec_str}).fetchall()
             
@@ -236,7 +233,7 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
             </div>
             """, unsafe_allow_html=True)
-            img_t1 = load_image("GO_AVERGE_PLACEMENT.png")
+            img_t1 = load_image("final_visuals/GO_AVERGE_PLACEMENT.png")
             if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
             
         with col_t2:
@@ -248,7 +245,7 @@ elif page == "Research & Insights":
                 <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
             </div>
             """, unsafe_allow_html=True)
-            img_t2 = load_image("NIRF_STUDENT_TEACHER.png")
+            img_t2 = load_image("final_visuals/NIRF_STUDENT_TEACHER.png")
             if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
 
     with tab3:
@@ -267,58 +264,83 @@ elif page == "Research & Insights":
         
         # Metric 1: OI
         st.markdown("#### 1. Inclusivity & Equity in STEMM (OI Score)")
-        col_oi1, col_oi2 = st.columns([1, 1.5])
+        col_oi1, col_oi2, col_oi3 = st.columns([1, 1.25, 1.25])
         with col_oi1:
             st.metric(label="DiD Estimator", value="+3.45", delta="Massive Success")
             st.write("The mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
         with col_oi2:
-            img_oi = load_image("did_analysis/did_bar_oi_score.png")
+            img_oi = load_image("final_visuals/did_bar_oi_score.png")
             if img_oi: st.image(img_oi, use_container_width=True)
+        with col_oi3:
+            img_oi_ts = load_image("final_visuals/did_timeseries_oi_score.png")
+            if img_oi_ts: st.image(img_oi_ts, caption="Pre-and-Post Parallel Trends divergence", use_container_width=True)
         st.divider()
             
         # Metric 2: TLR
         st.markdown("#### 2. Digital Divide & Infrastructure (TLR Score)")
-        col_tlr1, col_tlr2 = st.columns([1, 1.5])
+        col_tlr1, col_tlr2, col_tlr3 = st.columns([1, 1.25, 1.25])
         with col_tlr1:
             st.metric(label="DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
             st.write("The government required institutions to scale but failed to provide the capital. Tamil Nadu outpaced Karnataka in scaling.")
         with col_tlr2:
-            img_tlr = load_image("did_analysis/did_bar_tlr_score.png")
+            img_tlr = load_image("final_visuals/did_bar_tlr_score.png")
             if img_tlr: st.image(img_tlr, use_container_width=True)
+        with col_tlr3:
+            img_tlr_ts = load_image("final_visuals/did_timeseries_tlr_score.png")
+            if img_tlr_ts: st.image(img_tlr_ts, caption="Notice Tamil Nadu accelerating while Karnataka stagnates post-2021", use_container_width=True)
         st.divider()
             
         # Metric 3: RPC
         st.markdown("#### 3. Institutional Restructuring (RPC Score)")
-        col_rpc1, col_rpc2 = st.columns([1, 1.5])
+        col_rpc1, col_rpc2, col_rpc3 = st.columns([1, 1.25, 1.25])
         with col_rpc1:
             st.metric(label="DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
             st.write("The goal to build 'multidisciplinary research clusters' experienced severe friction, stalling Karnataka's research momentum.")
         with col_rpc2:
-            img_rpc = load_image("did_analysis/did_bar_rpc_score.png")
-            if img_rpc: st.image(img_rpc, use_container_width=True, caption="Notice the structural drop in Karnataka relative to the control.")
+            img_rpc = load_image("final_visuals/did_bar_rpc_score.png")
+            if img_rpc: st.image(img_rpc, use_container_width=True)
+        with col_rpc3:
+            img_rpc_ts = load_image("final_visuals/did_timeseries_rpc_score.png")
+            if img_rpc_ts: st.image(img_rpc_ts, caption="Structural drop in Karnataka relative to control.", use_container_width=True)
+        st.divider()
+
+        # Metric 4: GO
+        st.markdown("#### 4. Vocational Integration (GO Score)")
+        col_go1, col_go2, col_go3 = st.columns([1, 1.25, 1.25])
+        with col_go1:
+            st.write("Tracking graduation outcomes (placement rates and median salaries) post-implementation.")
+        with col_go2:
+            img_go = load_image("final_visuals/did_bar_go_score.png")
+            if img_go: st.image(img_go, use_container_width=True)
+        with col_go3:
+            img_go_ts = load_image("final_visuals/did_timeseries_go_score.png")
+            if img_go_ts: st.image(img_go_ts, caption="Time series comparison of Graduation Outcomes", use_container_width=True)
         st.divider()
 
         # Limitations Section
         st.markdown("### Analytical Limitations")
         st.warning("""
-        **Data Scarcity for Specific Variables:** Due to a lack of complete longitudinal ground-truth data, the following variables were excluded from the DiD evaluation:
-        * **Graduation Outcomes (GO):** Insufficient median salary and placement percentage data publicly available for the pre-2020 control period across all institutions.
-        * **Perception (PERCEPTION):** Lack of a reliable mathematical proxy for subjective peer/employer reviews across the pre-and-post evaluation windows.
+        **Data Scarcity for Specific Variables:** While metrics like RPC and TLR provide robust DiD estimators, certain metrics lacked complete longitudinal ground-truth datasets for highly localized institutional realities across the entire pre-2020 control period. Perception scoring remains challenging to reliably proxy across historical windows.
         """)
 
     with tab4:
         st.markdown("### Sentiment Mismatch & The Spillover Effect")
         st.write("By taking a Rolling Average Sentiment Trendline from historical news corpora and plotting it alongside the DiD graphs, a stark mismatch emerges between government mandates and on-the-ground reality.")
         
-        img5 = load_image("did_analysis/did_timeseries_sentiment.png")
-        if img5: st.image(img5, use_container_width=True)
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            img5 = load_image("final_visuals/did_timeseries_sentiment.png")
+            if img5: st.image(img5, use_container_width=True, caption="Historical Sentiment Trendline")
+        with col_s2:
+            img6 = load_image("final_visuals/ts_sentiment_corr_tlr_score.png")
+            if img6: st.image(img6, use_container_width=True, caption="Sentiment Correlated with TLR Resource Declines")
         
         st.markdown("""
         <div class="glass-card">
             <h4>The Insights</h4>
             <ul>
                 <li><b>The Mismatch:</b> While government evaluations praised the rapid structural rollouts, NLP tracking reveals deep negative sentiment troughs in Karnataka regarding examination chaos, teacher workload, and counseling delays.</li>
-                <li><b>The Spillover Effect (r = -0.616):</b> This public outrage isn't just noise; it acts as a leading indicator. The data shows that drops in administrative sentiment strongly correlate with a subsequent drop in actual student placement success (GO score) the following year.</li>
+                <li><b>The Spillover Effect:</b> This public outrage isn't just noise; it acts as a leading indicator. The data shows that drops in administrative sentiment directly correlate with a subsequent drop in operational infrastructure and resource bandwidth.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -356,6 +378,3 @@ elif page == "Agentic Interrogator":
         <p>The system is currently running via a manual, local LLaMA-based FastAPI server (<code>013_rag_server.py</code>) relying on FAISS embeddings to preserve data locality.</p>
     </div>
     """, unsafe_allow_html=True)
-
-    # Optional: If you want to connect the Streamlit UI directly to your new local FastAPI server,
-    # you can swap out the direct model calls for a simple requests.post("http://localhost:8000/api/chat", ...) here.
