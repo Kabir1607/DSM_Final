@@ -67,3 +67,29 @@ Constraints:
 
 
     Give me a graph that looks at the overall sentiment alongside the TLR, OI and GO scores.
+
+
+#!/bin/bash
+
+# 1. Set your passwords as environment variables
+export PGPASSWORD="School#1607"
+# Replace with your actual Supabase connection string
+export SUPABASE_URL="postgresql://postgres.ktmcdzauljzfiyuzlffj:[YOUR-PASSWORD]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
+
+echo "Starting migration from local nep_db to Supabase..."
+
+# 2. Dump the local database and pipe it directly to Supabase
+# --no-owner and --no-privileges prevent permission errors on the cloud DB
+pg_dump \
+  -h localhost \
+  -p 5432 \
+  -U nep_admin \
+  --clean \
+  --if-exists \
+  --no-owner \
+  --no-privileges \
+  -d nep_db | psql "$SUPABASE_URL"
+
+echo "Migration complete! Run python3 supabase_check.py again to verify."
+
+Iamanidiot#1607#Unique@2026
