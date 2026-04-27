@@ -93,3 +93,5 @@ pg_dump \
 echo "Migration complete! Run python3 supabase_check.py again to verify."
 
 Iamanidiot#1607#Unique@2026
+
+go score in RAG system 

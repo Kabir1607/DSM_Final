@@ -347,30 +347,15 @@ elif page == "Research & Insights":
 
 # 6. Page: Agentic RAG Interface
 elif page == "Agentic Interrogator":
-    st.markdown('<div class="main-title">Agentic Database Interrogator</div>', unsafe_allow_html=True)
-    st.markdown("Natural language routing. The engine dynamically decides whether to execute **Text-to-SQL** (for placements/rankings) or **HNSW Vector Search** (for policy PDFs).")
+    st.markdown('<div class="main-title" style="font-size: 4.5rem; text-align: center; margin-top: 2rem;">RAG System Run Locally</div>', unsafe_allow_html=True)
     
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "System ready. Query the data or policy documents.", "type": "system"}]
+    st.markdown("""
+    <div class="glass-card" style="text-align: center; margin-top: 2rem;">
+        <h3 style="color: #34D399;">System Offline & Secure</h3>
+        <p>Because the database environment is approximately 3.6 GB, the Agentic Router and Vector Stores have been entirely offloaded from cloud APIs.</p>
+        <p>The system is currently running via a manual, local LLaMA-based FastAPI server (<code>013_rag_server.py</code>) relying on FAISS embeddings to preserve data locality.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            if message.get("type") == "sql": st.caption("⚡ Executed via SQL Agent")
-            elif message.get("type") == "rag": st.caption("🧠 Executed via Semantic RAG Agent")
-            st.markdown(message["content"])
-
-    if prompt := st.chat_input("E.g. 'What was the average LPA in 2024?' or 'What does the NEP say about vocational skills?'"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Classifying intent & searching..."):
-                intent = get_routing_intent(prompt)
-                if intent == "SQL":
-                    st.caption("⚡ Executed via SQL Agent")
-                    response = handle_sql_query(prompt)
-                else:
-                    st.caption("🧠 Executed via Semantic RAG Agent")
-                    response = handle_rag_query(prompt)
-                st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response, "type": intent.lower()})
+    # Optional: If you want to connect the Streamlit UI directly to your new local FastAPI server,
+    # you can swap out the direct model calls for a simple requests.post("http://localhost:8000/api/chat", ...) here.
