@@ -148,6 +148,7 @@ if page == "Database Architecture":
         st.markdown("""
         <div class="glass-card">
             <h3>Tabular Data Corpus</h3>
+            <p><b>Total Volume: ~3.6 GB</b></p>
             <ul>
                 <li><b>NIRF Institutional Data:</b> ~10 years of longitudinal rankings and sub-scores.</li>
                 <li><b>AISHE Microdata:</b> Exhaustive institutional enrollment and infrastructure flags.</li>
@@ -160,6 +161,7 @@ if page == "Database Architecture":
         st.markdown("""
         <div class="glass-card">
             <h3>Unstructured Text Corpus</h3>
+            <p><b>Miscellaneous Text & Embeddings</b></p>
             <ul>
                 <li><b>Policy Documents:</b> Parsed and chunked PDFs (NEP 2020, Karnataka SEP 2025, UGC Circulars).</li>
                 <li><b>News Headlines (Sentiment):</b> ~4.2 Million historical regional news headlines processed for NLP scoring.</li>
@@ -180,7 +182,7 @@ if page == "Database Architecture":
 elif page == "Research & Insights":
     st.markdown('<div class="main-title">Analyzing NEP 2020: The Karnataka Counterfactual</div>', unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["Methodology & Policy Mapping", "The DiD Framework", "Sentiment Overlay & Findings"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Methodology & Mapping", "Data Triangulation", "The DiD Framework", "Sentiment Overlay"])
     
     with tab1:
         st.markdown("### Reading the Law: Policy Mapping")
@@ -206,6 +208,34 @@ elif page == "Research & Insights":
                 st.write("**Evaluation Metric:** Perception scores (peer/employer reputation) paired with RoBERTa NLP Sentiment tracking on local news to proxy public outrage and transition resistance.")
 
     with tab2:
+        st.markdown("### Exploratory Data Analysis & Triangulation")
+        st.write("Before running the causal models, the government index scores were cross-validated against raw, ground-truth variables to ensure data integrity.")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            st.markdown("""
+            <div class="glass-card">
+                <h4>Test 1: Quantity vs. Quality</h4>
+                <p>Cross-validated NIRF Graduation Outcomes (GO) against raw average starting salaries (LPA).</p>
+                <p style="color:#FBBF24;"><strong>Very Weak Correlation (r = 0.107)</strong></p>
+                <p><em>Insight:</em> The government index heavily overweights the quantity of placements over the quality of starting salaries.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            img_t1 = load_image("image_d74f9c.jpg")
+            if img_t1: st.image(img_t1, caption="GO Score vs Average LPA Distribution", use_container_width=True)
+            
+        with col_t2:
+            st.markdown("""
+            <div class="glass-card">
+                <h4>Test 2: Infrastructure Integrity</h4>
+                <p>Cross-validated NIRF TLR scores against raw AISHE Student-Faculty ratios.</p>
+                <p style="color:#34D399;"><strong>Strong Negative Correlation (r = -0.646)</strong></p>
+                <p><em>Insight:</em> Self-reported faculty counts appear genuine; institutions with crowded classrooms were accurately penalized in their score.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            img_t2 = load_image("image_d74f5c.jpg")
+            if img_t2: st.image(img_t2, caption="TLR Score vs Student-Faculty Ratio", use_container_width=True)
+
+    with tab3:
         st.markdown("### The Intuition: Why Difference-in-Differences (DiD)?")
         st.markdown("""
         <div class="glass-card">
@@ -218,21 +248,49 @@ elif page == "Research & Insights":
         """, unsafe_allow_html=True)
         
         st.markdown("### The Empirical Findings")
-        colA, colB = st.columns([1, 1.5])
-        with colA:
-            st.metric(label="OI Score (Inclusivity) DiD Estimator", value="+3.45", delta="Massive Success")
+        
+        # Metric 1: OI
+        st.markdown("#### 1. Inclusivity & Equity in STEMM (OI Score)")
+        col_oi1, col_oi2 = st.columns([1, 1.5])
+        with col_oi1:
+            st.metric(label="DiD Estimator", value="+3.45", delta="Massive Success")
             st.write("The mandate for flexible tracks successfully boosted marginalized demographics compared to the control state.")
-            st.divider()
-            st.metric(label="TLR Score (Infrastructure) DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
+        with col_oi2:
+            img_oi = load_image("did_analysis/did_bar_oi_score.png")
+            if img_oi: st.image(img_oi, use_container_width=True)
+        st.divider()
+            
+        # Metric 2: TLR
+        st.markdown("#### 2. Digital Divide & Infrastructure (TLR Score)")
+        col_tlr1, col_tlr2 = st.columns([1, 1.5])
+        with col_tlr1:
+            st.metric(label="DiD Estimator", value="-0.56", delta="Unfunded Mandate", delta_color="inverse")
             st.write("The government required institutions to scale but failed to provide the capital. Tamil Nadu outpaced Karnataka in scaling.")
-            st.divider()
-            st.metric(label="RPC Score (Research) DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
+        with col_tlr2:
+            img_tlr = load_image("did_analysis/did_bar_tlr_score.png")
+            if img_tlr: st.image(img_tlr, use_container_width=True)
+        st.divider()
+            
+        # Metric 3: RPC
+        st.markdown("#### 3. Institutional Restructuring (RPC Score)")
+        col_rpc1, col_rpc2 = st.columns([1, 1.5])
+        with col_rpc1:
+            st.metric(label="DiD Estimator", value="-1.14", delta="Transition Friction", delta_color="inverse")
             st.write("The goal to build 'multidisciplinary research clusters' experienced severe friction, stalling Karnataka's research momentum.")
-        with colB:
-            img3 = load_image("did_analysis/did_bar_rpc_score.png")
-            if img3: st.image(img3, use_container_width=True, caption="Notice the structural drop in Karnataka relative to the control.")
+        with col_rpc2:
+            img_rpc = load_image("did_analysis/did_bar_rpc_score.png")
+            if img_rpc: st.image(img_rpc, use_container_width=True, caption="Notice the structural drop in Karnataka relative to the control.")
+        st.divider()
 
-    with tab3:
+        # Limitations Section
+        st.markdown("### Analytical Limitations")
+        st.warning("""
+        **Data Scarcity for Specific Variables:** Due to a lack of complete longitudinal ground-truth data, the following variables were excluded from the DiD evaluation:
+        * **Graduation Outcomes (GO):** Insufficient median salary and placement percentage data publicly available for the pre-2020 control period across all institutions.
+        * **Perception (PERCEPTION):** Lack of a reliable mathematical proxy for subjective peer/employer reviews across the pre-and-post evaluation windows.
+        """)
+
+    with tab4:
         st.markdown("### Sentiment Mismatch & The Spillover Effect")
         st.write("By taking a Rolling Average Sentiment Trendline from historical news corpora and plotting it alongside the DiD graphs, a stark mismatch emerges between government mandates and on-the-ground reality.")
         
